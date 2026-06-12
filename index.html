@@ -1,1 +1,599 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AIL FTE Dashboard — AROPEX</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#f5f4f0;--surface:#ffffff;--surface-2:#f0efe9;
+  --border:rgba(0,0,0,0.1);--border-strong:rgba(0,0,0,0.18);
+  --text-primary:#1a1a18;--text-secondary:#5a5a56;--text-muted:#9a9994;
+  --accent:#1a4a8a;--accent-light:#e8eef8;
+  --green:#2d7a4f;--green-light:#e6f4ec;
+  --amber:#b8660a;--amber-light:#fef3e2;
+  --red:#c0392b;--red-light:#fdecea;
+  --teal:#0e7490;--teal-light:#e0f5f9;
+  --purple:#6d28d9;--purple-light:#ede9fe;
+  --radius:10px;--radius-sm:6px;
+}
+@media(prefers-color-scheme:dark){
+  :root{
+    --bg:#151513;--surface:#1e1e1b;--surface-2:#252522;
+    --border:rgba(255,255,255,0.1);--border-strong:rgba(255,255,255,0.18);
+    --text-primary:#f0efe9;--text-secondary:#a8a89f;--text-muted:#6a6a64;
+    --accent:#4a80d4;--accent-light:#1a2a40;
+    --green:#4ade80;--green-light:#0d2b1d;
+    --amber:#fbbf24;--amber-light:#2a1f08;
+    --red:#f87171;--red-light:#2a0f0f;
+    --teal:#22d3ee;--teal-light:#0a2530;
+    --purple:#a78bfa;--purple-light:#1e1535;
+  }
+}
+body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text-primary);font-size:14px;line-height:1.5;min-height:100vh}
+.header{background:var(--surface);border-bottom:1px solid var(--border);padding:14px 24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
+.logo-mark{width:34px;height:34px;background:var(--accent);border-radius:8px;display:flex;align-items:center;justify-content:center;color:white;font-size:12px;font-weight:600;flex-shrink:0}
+.header-left{display:flex;align-items:center;gap:12px}
+.header-title{font-size:14px;font-weight:600}
+.header-sub{font-size:11px;color:var(--text-muted);margin-top:1px}
+.header-right{display:flex;align-items:center;gap:8px}
+.status-pill{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text-secondary);background:var(--surface-2);border:1px solid var(--border);padding:4px 10px;border-radius:20px}
+.dot{width:6px;height:6px;border-radius:50%;background:var(--text-muted)}
+.dot.live{background:var(--green)}
+.dot.loading{background:var(--amber);animation:pulse 1s infinite}
+.dot.error{background:var(--red)}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.3}}
+.btn{display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:500;padding:5px 12px;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--text-secondary);cursor:pointer;transition:all 0.15s;font-family:'Inter',sans-serif}
+.btn:hover{border-color:var(--border-strong);color:var(--text-primary)}
+.btn.primary{background:var(--accent-light);border-color:rgba(74,128,212,0.3);color:var(--accent)}
+.main{padding:18px 24px;max-width:1400px;margin:0 auto}
+.filters{display:flex;gap:6px;margin-bottom:18px;flex-wrap:wrap}
+.filter-btn{font-size:12px;font-weight:500;padding:4px 14px;border-radius:20px;border:1px solid var(--border);background:var(--surface);color:var(--text-secondary);cursor:pointer;transition:all 0.15s}
+.filter-btn:hover{border-color:var(--border-strong);color:var(--text-primary)}
+.filter-btn.active{background:var(--accent);border-color:var(--accent);color:white}
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:16px}
+.kpi{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px}
+.kpi-label{font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:5px}
+.kpi-value{font-size:24px;font-weight:600;font-family:'JetBrains Mono',monospace;line-height:1;color:var(--text-primary)}
+.kpi-sub{font-size:11px;color:var(--text-secondary);margin-top:3px}
+.badge{display:inline-flex;align-items:center;font-size:10px;font-weight:500;padding:2px 7px;border-radius:4px;margin-top:4px}
+.b-green{background:var(--green-light);color:var(--green)}
+.b-amber{background:var(--amber-light);color:var(--amber)}
+.b-red{background:var(--red-light);color:var(--red)}
+.b-blue{background:var(--accent-light);color:var(--accent)}
+.b-teal{background:var(--teal-light);color:var(--teal)}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
+.row3{display:grid;grid-template-columns:2fr 1fr;gap:12px;margin-bottom:12px}
+@media(max-width:860px){.row2,.row3{grid-template-columns:1fr}}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px}
+.card-title{font-size:12px;font-weight:600;color:var(--text-primary);margin-bottom:12px;display:flex;align-items:center;justify-content:space-between}
+.card-title small{font-size:10px;font-weight:400;color:var(--text-muted)}
+.chart-wrap{position:relative;width:100%}
+table{width:100%;border-collapse:collapse;font-size:12px}
+thead th{text-align:left;font-size:10px;font-weight:500;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.04em;padding:5px 8px;border-bottom:1px solid var(--border);white-space:nowrap}
+th.r,td.r{text-align:right}
+tbody tr{border-bottom:1px solid var(--border);transition:background 0.1s}
+tbody tr:hover{background:var(--surface-2)}
+tbody tr:last-child{border-bottom:none}
+tbody td{padding:6px 8px;color:var(--text-primary)}
+td.muted{color:var(--text-secondary)}
+.tag{display:inline-flex;align-items:center;font-size:9px;font-weight:600;padding:2px 6px;border-radius:3px;white-space:nowrap;letter-spacing:0.03em}
+.t-sms{background:var(--accent-light);color:var(--accent)}
+.t-roll{background:var(--teal-light);color:var(--teal)}
+.t-scrap{background:var(--amber-light);color:var(--amber)}
+.t-dist{background:var(--purple-light);color:var(--purple)}
+.bar-row{display:flex;align-items:center;gap:5px}
+.bar-track{flex:1;height:4px;background:var(--surface-2);border-radius:3px;overflow:hidden;min-width:50px}
+.bar-fill{height:100%;border-radius:3px}
+.bar-pct{font-size:10px;font-weight:500;font-family:'JetBrains Mono',monospace;min-width:34px;text-align:right}
+.mono{font-family:'JetBrains Mono',monospace;font-weight:500}
+.search-row{display:flex;gap:6px;margin-bottom:10px;align-items:center}
+.search-input{flex:1;padding:5px 10px;border:1px solid var(--border);border-radius:6px;background:var(--surface-2);color:var(--text-primary);font-size:12px;font-family:'Inter',sans-serif;outline:none}
+.search-input:focus{border-color:var(--accent)}
+.search-input::placeholder{color:var(--text-muted)}
+.sort-btn{font-size:10px;padding:4px 8px;border:1px solid var(--border);border-radius:5px;background:var(--surface);color:var(--text-secondary);cursor:pointer}
+.sort-btn.on{border-color:var(--accent);color:var(--accent)}
+.spinner{width:24px;height:24px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 0.7s linear infinite;margin:auto}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading-box{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:48px;color:var(--text-muted);font-size:12px}
+.err-box{display:flex;flex-direction:column;align-items:center;gap:8px;padding:32px;color:var(--red);font-size:12px;text-align:center}
+.legend{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:8px;font-size:11px;color:var(--text-secondary)}
+.leg-item{display:flex;align-items:center;gap:4px}
+.leg-sw{width:10px;height:10px;border-radius:2px}
+.cap-item{display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:6px;margin-bottom:6px}
+.ts{font-size:11px}
+.last-upd{font-size:10px;color:var(--text-muted);text-align:right;margin-bottom:10px}
+</style>
+</head>
+<body>
 
+<header class="header">
+  <div class="header-left">
+    <div class="logo-mark">AIL</div>
+    <div>
+      <div class="header-title">FTE Workload Dashboard</div>
+      <div class="header-sub">AROPEX · Akij Ispat — Live Google Sheets</div>
+    </div>
+  </div>
+  <div class="header-right">
+    <div class="status-pill"><div class="dot loading" id="sDot"></div><span id="sTxt">Loading…</span></div>
+    <button class="btn primary" onclick="loadAll()">↻ Refresh</button>
+  </div>
+</header>
+
+<main class="main">
+  <div id="lastUpd" class="last-upd"></div>
+
+  <div class="filters">
+    <button class="filter-btn active" onclick="setFilter('all',this)">All Sections</button>
+    <button class="filter-btn" onclick="setFilter('SMS',this)">SMS</button>
+    <button class="filter-btn" onclick="setFilter('Rolling',this)">Rolling</button>
+    <button class="filter-btn" onclick="setFilter('Scrap',this)">Scrap</button>
+    <button class="filter-btn" onclick="setFilter('Distribution',this)">Distribution</button>
+  </div>
+
+  <div id="kpiGrid" class="kpi-grid">
+    <div class="kpi"><div class="loading-box"><div class="spinner"></div></div></div>
+  </div>
+
+  <div class="row2">
+    <div class="card">
+      <div class="card-title">FTE required vs headcount by section <small>per shift</small></div>
+      <div class="legend" id="chartLegend"></div>
+      <div class="chart-wrap" style="height:200px"><canvas id="cSection" role="img" aria-label="FTE vs headcount by section"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Average workload % by section <small>100% = full shift</small></div>
+      <div class="chart-wrap" style="height:200px"><canvas id="cLoad" role="img" aria-label="Workload percentage by section"></canvas></div>
+    </div>
+  </div>
+
+  <div class="row3">
+    <div class="card">
+      <div class="card-title">Role-level FTE <small>FTE = Total task time ÷ 480 min</small></div>
+      <div class="search-row">
+        <input class="search-input" type="text" id="roleSearch" placeholder="Search role or section…" oninput="renderRoles()">
+        <button class="sort-btn on" id="srtFte" onclick="setSortRole('fte')">FTE ↓</button>
+        <button class="sort-btn" id="srtLoad" onclick="setSortRole('load')">Load %</button>
+      </div>
+      <div style="overflow-x:auto">
+        <table>
+          <thead><tr><th>Section</th><th>Role</th><th class="r">HC</th><th class="r">FTE</th><th>Workload</th></tr></thead>
+          <tbody id="roleTbody"><tr><td colspan="5" style="text-align:center;padding:28px;color:var(--text-muted)">Loading…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">Capacity alerts <small>roles needing attention</small></div>
+      <div id="capList"><div class="loading-box"><div class="spinner"></div></div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Employee workload <small id="empCount"></small></div>
+    <div class="search-row">
+      <input class="search-input" type="text" id="empSearch" placeholder="Search name, role or section…" oninput="renderEmps()">
+    </div>
+    <div style="overflow-x:auto">
+      <table>
+        <thead><tr><th>Section</th><th>Employee</th><th>Enroll</th><th>Role</th><th class="r">Task min</th><th class="r">FTE</th><th>Workload</th></tr></thead>
+        <tbody id="empTbody"><tr><td colspan="7" style="text-align:center;padding:28px;color:var(--text-muted)">Loading…</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+</main>
+
+<script>
+/* ════════════════════════════════════════════════════════════════════════════
+   GOOGLE SHEETS CONNECTION
+   ────────────────────────────────────────────────────────────────────────────
+   • Old "/pub" published-URL connection has been REMOVED.
+   • New connection uses the sheet's File ID + gviz CSV endpoint.
+   • REQUIREMENT: In Google Sheets → Share → "Anyone with the link → Viewer".
+   ════════════════════════════════════════════════════════════════════════════ */
+const SHEET_ID = '1AR9KK4OQhdti6CLWDa5dn-4ak77VUDGAyTFSSYL6wds';
+const CSV_BASE = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv`;
+
+/* ⚠️ IMPORTANT: Replace the gid values below with the ACTUAL gid of each tab
+   in your new sheet. Open each tab and copy the number after `gid=` in the URL.
+   The URL you provided only shows gid=0 — that's your first tab.                */
+const TABS = [
+  { name:'SMS Production', gid:'493505032',          sec:'Production SMS' },          // <- update gid
+  { name:'Rolling',        gid:'0', sec:'Section' },      // <- update gid
+  { name:'Scrap',          gid:'725709422', sec:'Section' },        // <- update gid
+  { name:'Distribution',   gid:'780644487',  sec:'Section' }  // <- update gid
+];
+
+const SEC_COLOR = {
+  SMS:          { bar:'#1a4a8a', bg:'#e8eef8' },
+  Rolling:      { bar:'#0e7490', bg:'#e0f5f9' },
+  Scrap:        { bar:'#b8660a', bg:'#fef3e2' },
+  Distribution: { bar:'#6d28d9', bg:'#ede9fe' }
+};
+
+let allEmps = [], allRoles = [];
+let activeFilter = 'all', roleSort = 'fte';
+let chartSec = null, chartLoad = null;
+
+// ── Fetch one tab as CSV via PapaParse ──────────────────────────────────────
+function fetchTab(gid) {
+  return new Promise((res, rej) => {
+    const url = `${CSV_BASE}&gid=${gid}`;
+    Papa.parse(url, {
+      download: true,
+      header: false,
+      skipEmptyLines: true,
+      complete: r => res(r.data),
+      error: e => rej(e)
+    });
+  });
+}
+
+// ── Parse raw CSV rows per tab type ────────────────────────────────────────
+function g(row, i) { return (row[i] || '').toString().trim(); }
+function n(row, i) { const v = parseFloat(row[i]); return isNaN(v) ? 0 : v; }
+
+function parseSMS(rows) {
+  // col: 0=SBU,1=Section,2=WorkCentre,3=Employee,4=Role,5=Enroll,6=Task,7=ReqTime,8=Freq,9=TotalTime
+  return rows.slice(1).map(r => ({
+    sec:'SMS', wc:g(r,2), emp:g(r,3), role:g(r,4), enroll:g(r,5),
+    task:g(r,6), totalTime:n(r,9)
+  })).filter(r => r.emp && r.role && r.role.length > 1);
+}
+
+function parseRolling(rows) {
+  // col: 0=SBU,1=Section,2=Employee,3=Role,4=Enroll,5=WorkCentre,6=Task,...,10=TotalTime
+  return rows.slice(1).map(r => ({
+    sec:'Rolling', wc:g(r,5), emp:g(r,2), role:g(r,3), enroll:g(r,4),
+    task:g(r,6), totalTime:n(r,10)
+  })).filter(r => r.emp && r.role && r.role.length > 1);
+}
+
+function parseScrap(rows) {
+  // col: 0=SBU,1=Section,2=WorkCentre,3=Employee,4=Enroll,5=Role,6=Task,7=TimePerTask,8=Freq,9=ActualTime,10=Remarks,11=TotalTime
+  return rows.slice(1).map(r => ({
+    sec:'Scrap', wc:g(r,2), emp:g(r,3), role:g(r,5), enroll:g(r,4),
+    task:g(r,6), totalTime:n(r,11)
+  })).filter(r => r.emp && r.role && r.role.length > 1);
+}
+
+function parseDist(rows) {
+  // col: 0=SBU,1=Section,2=WorkCentre,3=Employee,4=Enroll,5=Role,6=Task,7=ReqTime,8=Freq,9=TotalTime
+  return rows.slice(1).map(r => ({
+    sec:'Distribution', wc:g(r,2), emp:g(r,3), role:g(r,5), enroll:g(r,4),
+    task:g(r,6), totalTime:n(r,9)
+  })).filter(r => r.emp && r.role && r.role.length > 1);
+}
+
+// ── Aggregate task rows → per-employee ─────────────────────────────────────
+function aggByEmp(rows) {
+  const map = {};
+  rows.forEach(r => {
+    const k = `${r.sec}||${r.enroll}||${r.emp}||${r.role}`;
+    if (!map[k]) map[k] = { sec:r.sec, emp:r.emp, enroll:r.enroll, role:r.role, totalTime:0 };
+    map[k].totalTime += r.totalTime;
+  });
+  return Object.values(map).filter(e => e.emp && e.role.length > 1);
+}
+
+// ── Aggregate employees → per-role ─────────────────────────────────────────
+function aggByRole(emps) {
+  const map = {};
+  emps.forEach(e => {
+    const k = `${e.sec}||${e.role}`;
+    if (!map[k]) map[k] = { sec:e.sec, role:e.role, hc:0, totalTime:0 };
+    map[k].hc++;
+    map[k].totalTime += e.totalTime;
+  });
+  return Object.values(map).map(r => ({
+    ...r,
+    fte: r.totalTime / 480,
+    loadPct: r.hc > 0 ? (r.totalTime / r.hc) / 480 * 100 : 0
+  }));
+}
+
+// ── Helpers ─────────────────────────────────────────────────────────────────
+function filtered() {
+  if (activeFilter === 'all') return { emps: allEmps, roles: allRoles };
+  return {
+    emps:  allEmps.filter(e => e.sec === activeFilter),
+    roles: allRoles.filter(r => r.sec === activeFilter)
+  };
+}
+
+function wColor(pct) {
+  if (pct > 100) return '#c0392b';
+  if (pct >= 80) return '#b8660a';
+  if (pct >= 60) return '#2d7a4f';
+  return '#0e7490';
+}
+
+function tagClass(sec) {
+  return sec==='SMS'?'t-sms':sec==='Rolling'?'t-roll':sec==='Scrap'?'t-scrap':'t-dist';
+}
+
+function badgeClass(pct) {
+  return pct>100?'b-red':pct>=80?'b-amber':pct>=60?'b-green':'b-teal';
+}
+
+function setFilter(f, btn) {
+  activeFilter = f;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderAll();
+}
+
+function setSortRole(k) {
+  roleSort = k;
+  document.getElementById('srtFte').classList.toggle('on', k==='fte');
+  document.getElementById('srtLoad').classList.toggle('on', k==='load');
+  renderRoles();
+}
+
+// ── Render KPIs ─────────────────────────────────────────────────────────────
+function renderKPIs() {
+  const { emps, roles } = filtered();
+  const totFTE  = emps.reduce((s,e) => s + e.totalTime, 0) / 480;
+  const avgLoad = emps.length ? emps.reduce((s,e) => s + (e.totalTime/480*100), 0) / emps.length : 0;
+  const over    = roles.filter(r => r.loadPct > 100).length;
+  const under   = roles.filter(r => r.loadPct > 0 && r.loadPct < 60).length;
+
+  const secLoad = s => {
+    const rs = allRoles.filter(r => r.sec===s && r.loadPct>0);
+    return rs.length ? rs.reduce((a,r)=>a+r.loadPct,0)/rs.length : 0;
+  };
+
+  document.getElementById('kpiGrid').innerHTML = `
+    <div class="kpi">
+      <div class="kpi-label">Total Employees</div>
+      <div class="kpi-value">${emps.length}</div>
+      <div class="kpi-sub">${activeFilter==='all'?'Across 4 sections':activeFilter}</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Required FTE</div>
+      <div class="kpi-value">${totFTE.toFixed(1)}</div>
+      <div class="kpi-sub">480 min standard shift</div>
+      <div class="badge ${badgeClass(avgLoad)}">${avgLoad.toFixed(1)}% avg load</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Overloaded Roles</div>
+      <div class="kpi-value" style="color:var(--red)">${over}</div>
+      <div class="kpi-sub">Workload &gt; 100%</div>
+      <div class="badge ${over>0?'b-red':'b-green'}">${over>0?'Action needed':'All clear'}</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Underutilised Roles</div>
+      <div class="kpi-value" style="color:var(--teal)">${under}</div>
+      <div class="kpi-sub">Workload &lt; 60%</div>
+      <div class="badge b-teal">Review capacity</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">SMS Avg Load</div>
+      <div class="kpi-value" style="font-size:20px">${secLoad('SMS').toFixed(1)}%</div>
+      <div class="badge ${badgeClass(secLoad('SMS'))}">${secLoad('SMS')>100?'Over':secLoad('SMS')>=80?'Optimal':'Under'}</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Rolling Avg Load</div>
+      <div class="kpi-value" style="font-size:20px">${secLoad('Rolling').toFixed(1)}%</div>
+      <div class="badge ${badgeClass(secLoad('Rolling'))}">${secLoad('Rolling')>100?'Over':secLoad('Rolling')>=80?'Optimal':'Under'}</div>
+    </div>`;
+}
+
+// ── Render Charts ───────────────────────────────────────────────────────────
+function renderCharts() {
+  const secs = ['SMS','Rolling','Scrap','Distribution'];
+  const fteD  = secs.map(s => +( allEmps.filter(e=>e.sec===s).reduce((a,e)=>a+e.totalTime,0)/480).toFixed(1));
+  const hcD   = secs.map(s => allEmps.filter(e=>e.sec===s).length);
+  const loadD = secs.map(s => {
+    const rs = allRoles.filter(r=>r.sec===s && r.loadPct>0);
+    return rs.length ? +(rs.reduce((a,r)=>a+r.loadPct,0)/rs.length).toFixed(1) : 0;
+  });
+
+  document.getElementById('chartLegend').innerHTML = secs.map((s,i)=>`
+    <span class="leg-item">
+      <span class="leg-sw" style="background:${SEC_COLOR[s].bar}"></span>
+      ${s}: ${fteD[i]} FTE / ${hcD[i]} HC
+    </span>`).join('');
+
+  if (chartSec) chartSec.destroy();
+  chartSec = new Chart(document.getElementById('cSection').getContext('2d'), {
+    type:'bar',
+    data:{
+      labels:secs,
+      datasets:[
+        { label:'Headcount', data:hcD,
+          backgroundColor:secs.map(s=>SEC_COLOR[s].bg),
+          borderColor:secs.map(s=>SEC_COLOR[s].bar),
+          borderWidth:1.5, borderRadius:4 },
+        { label:'FTE Required', data:fteD,
+          backgroundColor:secs.map(s=>SEC_COLOR[s].bar),
+          borderWidth:0, borderRadius:4 }
+      ]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{legend:{display:false}},
+      scales:{
+        y:{beginAtZero:true, grid:{color:'rgba(128,128,128,0.1)'}, ticks:{font:{size:10},color:'#888'}},
+        x:{grid:{display:false}, ticks:{font:{size:11},color:'#888'}}
+      }
+    }
+  });
+
+  if (chartLoad) chartLoad.destroy();
+  chartLoad = new Chart(document.getElementById('cLoad').getContext('2d'), {
+    type:'bar',
+    data:{
+      labels:secs,
+      datasets:[{
+        label:'Avg Workload %', data:loadD,
+        backgroundColor:loadD.map(v=>wColor(v)),
+        borderRadius:4, barThickness:26
+      }]
+    },
+    options:{
+      indexAxis:'y', responsive:true, maintainAspectRatio:false,
+      plugins:{legend:{display:false}},
+      scales:{
+        x:{beginAtZero:true, max:120,
+           grid:{color:'rgba(128,128,128,0.1)'},
+           ticks:{callback:v=>v+'%', font:{size:10}, color:'#888'}},
+        y:{grid:{display:false}, ticks:{font:{size:11}, color:'#888'}}
+      }
+    }
+  });
+}
+
+// ── Render Role Table ───────────────────────────────────────────────────────
+function renderRoles() {
+  const { roles } = filtered();
+  const q = document.getElementById('roleSearch').value.toLowerCase();
+  let rows = roles.filter(r =>
+    r.role.toLowerCase().includes(q) || r.sec.toLowerCase().includes(q)
+  );
+  rows.sort((a,b) => roleSort==='fte' ? b.fte-a.fte : b.loadPct-a.loadPct);
+
+  const tbody = document.getElementById('roleTbody');
+  if (!rows.length) {
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:20px;color:var(--text-muted)">No matching roles</td></tr>';
+    return;
+  }
+  tbody.innerHTML = rows.map(r => {
+    const col = wColor(r.loadPct);
+    return `<tr>
+      <td><span class="tag ${tagClass(r.sec)}">${r.sec}</span></td>
+      <td class="muted" style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.role}</td>
+      <td class="r mono">${r.hc}</td>
+      <td class="r mono">${r.fte.toFixed(2)}</td>
+      <td>
+        <div class="bar-row">
+          <div class="bar-track"><div class="bar-fill" style="width:${Math.min(r.loadPct,100)}%;background:${col}"></div></div>
+          <span class="bar-pct" style="color:${col}">${Math.round(r.loadPct)}%</span>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+// ── Render Capacity Alerts ──────────────────────────────────────────────────
+function renderCap() {
+  const { roles } = filtered();
+  const over  = roles.filter(r=>r.loadPct>100).sort((a,b)=>b.loadPct-a.loadPct).slice(0,5);
+  const under = roles.filter(r=>r.loadPct>0&&r.loadPct<60).sort((a,b)=>a.loadPct-b.loadPct).slice(0,5);
+  const all   = [
+    ...over.map(r=>({...r,type:'over'})),
+    ...under.map(r=>({...r,type:'under'}))
+  ];
+  const el = document.getElementById('capList');
+  if (!all.length) {
+    el.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-muted);font-size:12px">All roles within normal range</div>';
+    return;
+  }
+  el.innerHTML = all.map(r => {
+    const bg  = r.type==='over'?'var(--red-light)':'var(--teal-light)';
+    const col = r.type==='over'?'var(--red)':'var(--teal)';
+    const ico = r.type==='over'?'↑':'↓';
+    return `<div class="cap-item" style="background:${bg}">
+      <span style="font-size:15px;color:${col};font-weight:600;width:14px">${ico}</span>
+      <div style="flex:1;min-width:0">
+        <div class="ts" style="font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.role}</div>
+        <div style="display:flex;gap:5px;align-items:center;margin-top:2px">
+          <span class="tag ${tagClass(r.sec)}">${r.sec}</span>
+          <span style="font-size:10px;color:var(--text-secondary)">${r.type==='over'?'Overloaded':'Underutilised'}</span>
+        </div>
+      </div>
+      <span class="mono" style="font-size:12px;color:${col}">${Math.round(r.loadPct)}%</span>
+    </div>`;
+  }).join('');
+}
+
+// ── Render Employee Table ───────────────────────────────────────────────────
+function renderEmps() {
+  const { emps } = filtered();
+  const q = document.getElementById('empSearch').value.toLowerCase();
+  const rows = emps
+    .filter(e => e.emp.toLowerCase().includes(q)||e.role.toLowerCase().includes(q)||e.sec.toLowerCase().includes(q))
+    .sort((a,b) => b.totalTime - a.totalTime);
+
+  document.getElementById('empCount').textContent = `${rows.length} employees`;
+
+  const tbody = document.getElementById('empTbody');
+  if (!rows.length) {
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:20px;color:var(--text-muted)">No results</td></tr>';
+    return;
+  }
+  tbody.innerHTML = rows.map(e => {
+    const fte  = e.totalTime / 480;
+    const load = fte * 100;
+    const col  = wColor(load);
+    return `<tr>
+      <td><span class="tag ${tagClass(e.sec)}">${e.sec}</span></td>
+      <td style="font-weight:500">${e.emp}</td>
+      <td class="muted mono" style="font-size:10px">${e.enroll}</td>
+      <td class="muted">${e.role}</td>
+      <td class="r mono">${Math.round(e.totalTime)}</td>
+      <td class="r mono" style="color:${col}">${fte.toFixed(2)}</td>
+      <td>
+        <div class="bar-row">
+          <div class="bar-track"><div class="bar-fill" style="width:${Math.min(load,100)}%;background:${col}"></div></div>
+          <span class="bar-pct" style="color:${col}">${Math.round(load)}%</span>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function renderAll() {
+  renderKPIs();
+  renderCharts();
+  renderRoles();
+  renderCap();
+  renderEmps();
+}
+
+function setStatus(state, txt) {
+  document.getElementById('sDot').className = 'dot' + (state?' '+state:'');
+  document.getElementById('sTxt').textContent = txt;
+}
+
+// ── Main load ───────────────────────────────────────────────────────────────
+async function loadAll() {
+  setStatus('loading','Fetching data…');
+  document.getElementById('kpiGrid').innerHTML =
+    '<div class="kpi" style="grid-column:1/-1"><div class="loading-box"><div class="spinner"></div><span>Pulling live data from Google Sheets…</span></div></div>';
+
+  try {
+    const parsers = [parseSMS, parseRolling, parseScrap, parseDist];
+    const results = await Promise.all(
+      TABS.map((t,i) => fetchTab(t.gid).then(rows => parsers[i](rows)))
+    );
+    const allRows = results.flat();
+    allEmps  = aggByEmp(allRows);
+    allRoles = aggByRole(allEmps);
+
+    document.getElementById('lastUpd').textContent =
+      'Last updated: ' + new Date().toLocaleString('en-GB',{dateStyle:'medium',timeStyle:'short'});
+    setStatus('live','Live');
+    renderAll();
+  } catch(err) {
+    console.error(err);
+    setStatus('error','Error');
+    document.getElementById('kpiGrid').innerHTML = `
+      <div class="kpi" style="grid-column:1/-1">
+        <div class="err-box">
+          <div>⚠️ Could not load data</div>
+          <div style="color:var(--text-muted);font-size:11px">Check console · Ensure sheet is shared as "Anyone with the link → Viewer" and tab GIDs are correct</div>
+          <button class="btn primary" onclick="loadAll()" style="margin-top:8px">↻ Retry</button>
+        </div>
+      </div>`;
+  }
+}
+
+loadAll();
+</script>
+</body>
+</html>
