@@ -82,10 +82,20 @@ tbody tr:last-child{border-bottom:none}
 tbody td{padding:6px 8px;color:var(--text-primary)}
 td.muted{color:var(--text-secondary)}
 .tag{display:inline-flex;align-items:center;font-size:9px;font-weight:600;padding:2px 6px;border-radius:3px;white-space:nowrap;letter-spacing:0.03em}
-.t-sms{background:var(--accent-light);color:var(--accent)}
-.t-roll{background:var(--teal-light);color:var(--teal)}
-.t-scrap{background:var(--amber-light);color:var(--amber)}
-.t-dist{background:var(--purple-light);color:var(--purple)}
+
+/* Dynamic Section Colors using unique style markers */
+.t-sec-0 { background:#e8eef8; color:#1a4a8a; }
+.t-sec-1 { background:#e0f5f9; color:#0e7490; }
+.t-sec-2 { background:#fef3e2; color:#b8660a; }
+.t-sec-3 { background:#ede9fe; color:#6d28d9; }
+.t-sec-4 { background:#e6f4ec; color:#2d7a4f; }
+.t-sec-5 { background:#fdecea; color:#c0392b; }
+.t-sec-6 { background:#fff7ed; color:#ea580c; }
+.t-sec-7 { background:#f0fdf4; color:#16a34a; }
+.t-sec-8 { background:#f5f3ff; color:#7c3aed; }
+.t-sec-9 { background:#fff1f2; color:#e11d48; }
+.t-sec-10{ background:#f0fdfa; color:#0d9488; }
+
 .bar-row{display:flex;align-items:center;gap:5px}
 .bar-track{flex:1;height:4px;background:var(--surface-2);border-radius:3px;overflow:hidden;min-width:50px}
 .bar-fill{height:100%;border-radius:3px}
@@ -128,12 +138,9 @@ td.muted{color:var(--text-secondary)}
 <main class="main">
   <div id="lastUpd" class="last-upd"></div>
 
-  <div class="filters">
+  <div class="filters" id="filterArea">
     <button class="filter-btn active" onclick="setFilter('all',this)">All Sections</button>
-    <button class="filter-btn" onclick="setFilter('SMS',this)">SMS</button>
-    <button class="filter-btn" onclick="setFilter('Rolling',this)">Rolling</button>
-    <button class="filter-btn" onclick="setFilter('Scrap',this)">Scrap</button>
-    <button class="filter-btn" onclick="setFilter('Distribution',this)">Distribution</button>
+    <!-- Filter buttons populated dynamically -->
   </div>
 
   <div id="kpiGrid" class="kpi-grid">
@@ -144,11 +151,11 @@ td.muted{color:var(--text-secondary)}
     <div class="card">
       <div class="card-title">FTE required vs headcount by section <small>per shift</small></div>
       <div class="legend" id="chartLegend"></div>
-      <div class="chart-wrap" style="height:200px"><canvas id="cSection" role="img" aria-label="FTE vs headcount by section"></canvas></div>
+      <div class="chart-wrap" style="height:220px"><canvas id="cSection" role="img" aria-label="FTE vs headcount by section"></canvas></div>
     </div>
     <div class="card">
       <div class="card-title">Average workload % by section <small>100% = full shift</small></div>
-      <div class="chart-wrap" style="height:200px"><canvas id="cLoad" role="img" aria-label="Workload percentage by section"></canvas></div>
+      <div class="chart-wrap" style="height:220px"><canvas id="cLoad" role="img" aria-label="Workload percentage by section"></canvas></div>
     </div>
   </div>
 
@@ -160,7 +167,7 @@ td.muted{color:var(--text-secondary)}
         <button class="sort-btn on" id="srtFte" onclick="setSortRole('fte')">FTE ↓</button>
         <button class="sort-btn" id="srtLoad" onclick="setSortRole('load')">Load %</button>
       </div>
-      <div style="overflow-x:auto">
+      <div style="overflow-x:auto; max-height: 400px;">
         <table>
           <thead><tr><th>Section</th><th>Role</th><th class="r">HC</th><th class="r">FTE</th><th>Workload</th></tr></thead>
           <tbody id="roleTbody"><tr><td colspan="5" style="text-align:center;padding:28px;color:var(--text-muted)">Loading…</td></tr></tbody>
@@ -169,7 +176,7 @@ td.muted{color:var(--text-secondary)}
     </div>
     <div class="card">
       <div class="card-title">Capacity alerts <small>roles needing attention</small></div>
-      <div id="capList"><div class="loading-box"><div class="spinner"></div></div></div>
+      <div id="capList" style="overflow-y:auto; max-height: 400px;"><div class="loading-box"><div class="spinner"></div></div></div>
     </div>
   </div>
 
@@ -178,7 +185,7 @@ td.muted{color:var(--text-secondary)}
     <div class="search-row">
       <input class="search-input" type="text" id="empSearch" placeholder="Search name, role or section…" oninput="renderEmps()">
     </div>
-    <div style="overflow-x:auto">
+    <div style="overflow-x:auto; max-height: 500px;">
       <table>
         <thead><tr><th>Section</th><th>Employee</th><th>Enroll</th><th>Role</th><th class="r">Task min</th><th class="r">FTE</th><th>Workload</th></tr></thead>
         <tbody id="empTbody"><tr><td colspan="7" style="text-align:center;padding:28px;color:var(--text-muted)">Loading…</td></tr></tbody>
@@ -188,38 +195,52 @@ td.muted{color:var(--text-secondary)}
 </main>
 
 <script>
-/* ════════════════════════════════════════════════════════════════════════════
-   GOOGLE SHEETS CONNECTION
-   ────────────────────────────────────────────────────────────────────────────
-   • Old "/pub" published-URL connection has been REMOVED.
-   • New connection uses the sheet's File ID + gviz CSV endpoint.
-   • REQUIREMENT: In Google Sheets → Share → "Anyone with the link → Viewer".
-   ════════════════════════════════════════════════════════════════════════════ */
-const SHEET_ID = '1AR9KK4OQhdti6CLWDa5dn-4ak77VUDGAyTFSSYL6wds';
+const SHEET_ID = '11TDZ7ZNJlbByF978n0mGPXtTxuxv6oHpiPFT-_RTdm8';
 const CSV_BASE = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv`;
 
-/* ⚠️ IMPORTANT: Replace the gid values below with the ACTUAL gid of each tab
-   in your new sheet. Open each tab and copy the number after `gid=` in the URL.
-   The URL you provided only shows gid=0 — that's your first tab.                */
+// Complete list of all 11 sections with their designated GIDs
 const TABS = [
-  { name:'SMS Production', gid:'493505032',          sec:'Production SMS' },          // <- update gid
-  { name:'Rolling',        gid:'0', sec:'Section' },      // <- update gid
-  { name:'Scrap',          gid:'725709422', sec:'Section' },        // <- update gid
-  { name:'Distribution',   gid:'780644487',  sec:'Section' }  // <- update gid
+  { name: 'Inventory', gid: '0' },
+  { name: 'Packer', gid: '837727582' },
+  { name: 'Electrical', gid: '245837949' },
+  { name: 'Production', gid: '272128339' },
+  { name: 'Distribution', gid: '1150414417' },
+  { name: 'Power Plant', gid: '1305604892' },
+  { name: 'Sustainability', gid: '1734075684' },
+  { name: 'Mechanical', gid: '301498148' },
+  { name: 'Civil', gid: '322332872' },
+  { name: 'QA', gid: '41791011' },
+  { name: 'HR & Admin', gid: '181880783' }
 ];
 
-const SEC_COLOR = {
-  SMS:          { bar:'#1a4a8a', bg:'#e8eef8' },
-  Rolling:      { bar:'#0e7490', bg:'#e0f5f9' },
-  Scrap:        { bar:'#b8660a', bg:'#fef3e2' },
-  Distribution: { bar:'#6d28d9', bg:'#ede9fe' }
-};
+// Expanded hex palette for up to 11 custom chart profiles
+const PALETTE = [
+  '#1a4a8a', '#0e7490', '#b8660a', '#6d28d9', '#2d7a4f', 
+  '#c0392b', '#ea580c', '#16a34a', '#7c3aed', '#e11d48', '#0d9488'
+];
+const BG_PALETTE = [
+  '#e8eef8', '#e0f5f9', '#fef3e2', '#ede9fe', '#e6f4ec', 
+  '#fdecea', '#fff7ed', '#f0fdf4', '#f5f3ff', '#fff1f2', '#f0fdfa'
+];
+
+const SEC_COLOR = {};
+TABS.forEach((t, idx) => {
+  SEC_COLOR[t.name] = { bar: PALETTE[idx], bg: BG_PALETTE[idx], classIndex: idx };
+});
 
 let allEmps = [], allRoles = [];
 let activeFilter = 'all', roleSort = 'fte';
 let chartSec = null, chartLoad = null;
 
-// ── Fetch one tab as CSV via PapaParse ──────────────────────────────────────
+// Build the HTML Filter buttons based on your tabs array dynamically
+function buildFilterButtons() {
+  const container = document.getElementById('filterArea');
+  container.innerHTML = `<button class="filter-btn active" onclick="setFilter('all',this)">All Sections</button>`;
+  TABS.forEach(t => {
+    container.innerHTML += `<button class="filter-btn" onclick="setFilter('${t.name}',this)">${t.name}</button>`;
+  });
+}
+
 function fetchTab(gid) {
   return new Promise((res, rej) => {
     const url = `${CSV_BASE}&gid=${gid}`;
@@ -233,43 +254,22 @@ function fetchTab(gid) {
   });
 }
 
-// ── Parse raw CSV rows per tab type ────────────────────────────────────────
 function g(row, i) { return (row[i] || '').toString().trim(); }
 function n(row, i) { const v = parseFloat(row[i]); return isNaN(v) ? 0 : v; }
 
-function parseSMS(rows) {
-  // col: 0=SBU,1=Section,2=WorkCentre,3=Employee,4=Role,5=Enroll,6=Task,7=ReqTime,8=Freq,9=TotalTime
+// Universal single layout parser optimized for your 0 to 9 schema
+function parseTabRows(rows, sectionName) {
   return rows.slice(1).map(r => ({
-    sec:'SMS', wc:g(r,2), emp:g(r,3), role:g(r,4), enroll:g(r,5),
-    task:g(r,6), totalTime:n(r,9)
+    sec: sectionName, 
+    emp: g(r, 2), 
+    role: g(r, 3), 
+    enroll: g(r, 4),
+    wc: g(r, 5), 
+    task: g(r, 6), 
+    totalTime: n(r, 9)
   })).filter(r => r.emp && r.role && r.role.length > 1);
 }
 
-function parseRolling(rows) {
-  // col: 0=SBU,1=Section,2=Employee,3=Role,4=Enroll,5=WorkCentre,6=Task,...,10=TotalTime
-  return rows.slice(1).map(r => ({
-    sec:'Rolling', wc:g(r,5), emp:g(r,2), role:g(r,3), enroll:g(r,4),
-    task:g(r,6), totalTime:n(r,10)
-  })).filter(r => r.emp && r.role && r.role.length > 1);
-}
-
-function parseScrap(rows) {
-  // col: 0=SBU,1=Section,2=WorkCentre,3=Employee,4=Enroll,5=Role,6=Task,7=TimePerTask,8=Freq,9=ActualTime,10=Remarks,11=TotalTime
-  return rows.slice(1).map(r => ({
-    sec:'Scrap', wc:g(r,2), emp:g(r,3), role:g(r,5), enroll:g(r,4),
-    task:g(r,6), totalTime:n(r,11)
-  })).filter(r => r.emp && r.role && r.role.length > 1);
-}
-
-function parseDist(rows) {
-  // col: 0=SBU,1=Section,2=WorkCentre,3=Employee,4=Enroll,5=Role,6=Task,7=ReqTime,8=Freq,9=TotalTime
-  return rows.slice(1).map(r => ({
-    sec:'Distribution', wc:g(r,2), emp:g(r,3), role:g(r,5), enroll:g(r,4),
-    task:g(r,6), totalTime:n(r,9)
-  })).filter(r => r.emp && r.role && r.role.length > 1);
-}
-
-// ── Aggregate task rows → per-employee ─────────────────────────────────────
 function aggByEmp(rows) {
   const map = {};
   rows.forEach(r => {
@@ -280,7 +280,6 @@ function aggByEmp(rows) {
   return Object.values(map).filter(e => e.emp && e.role.length > 1);
 }
 
-// ── Aggregate employees → per-role ─────────────────────────────────────────
 function aggByRole(emps) {
   const map = {};
   emps.forEach(e => {
@@ -296,7 +295,6 @@ function aggByRole(emps) {
   }));
 }
 
-// ── Helpers ─────────────────────────────────────────────────────────────────
 function filtered() {
   if (activeFilter === 'all') return { emps: allEmps, roles: allRoles };
   return {
@@ -313,7 +311,8 @@ function wColor(pct) {
 }
 
 function tagClass(sec) {
-  return sec==='SMS'?'t-sms':sec==='Rolling'?'t-roll':sec==='Scrap'?'t-scrap':'t-dist';
+  const lookup = SEC_COLOR[sec];
+  return lookup ? `t-sec-${lookup.classIndex}` : '';
 }
 
 function badgeClass(pct) {
@@ -334,7 +333,6 @@ function setSortRole(k) {
   renderRoles();
 }
 
-// ── Render KPIs ─────────────────────────────────────────────────────────────
 function renderKPIs() {
   const { emps, roles } = filtered();
   const totFTE  = emps.reduce((s,e) => s + e.totalTime, 0) / 480;
@@ -342,16 +340,11 @@ function renderKPIs() {
   const over    = roles.filter(r => r.loadPct > 100).length;
   const under   = roles.filter(r => r.loadPct > 0 && r.loadPct < 60).length;
 
-  const secLoad = s => {
-    const rs = allRoles.filter(r => r.sec===s && r.loadPct>0);
-    return rs.length ? rs.reduce((a,r)=>a+r.loadPct,0)/rs.length : 0;
-  };
-
   document.getElementById('kpiGrid').innerHTML = `
     <div class="kpi">
       <div class="kpi-label">Total Employees</div>
       <div class="kpi-value">${emps.length}</div>
-      <div class="kpi-sub">${activeFilter==='all'?'Across 4 sections':activeFilter}</div>
+      <div class="kpi-sub">${activeFilter==='all'?'Across 11 sections':activeFilter}</div>
     </div>
     <div class="kpi">
       <div class="kpi-label">Required FTE</div>
@@ -370,34 +363,26 @@ function renderKPIs() {
       <div class="kpi-value" style="color:var(--teal)">${under}</div>
       <div class="kpi-sub">Workload &lt; 60%</div>
       <div class="badge b-teal">Review capacity</div>
-    </div>
-    <div class="kpi">
-      <div class="kpi-label">SMS Avg Load</div>
-      <div class="kpi-value" style="font-size:20px">${secLoad('SMS').toFixed(1)}%</div>
-      <div class="badge ${badgeClass(secLoad('SMS'))}">${secLoad('SMS')>100?'Over':secLoad('SMS')>=80?'Optimal':'Under'}</div>
-    </div>
-    <div class="kpi">
-      <div class="kpi-label">Rolling Avg Load</div>
-      <div class="kpi-value" style="font-size:20px">${secLoad('Rolling').toFixed(1)}%</div>
-      <div class="badge ${badgeClass(secLoad('Rolling'))}">${secLoad('Rolling')>100?'Over':secLoad('Rolling')>=80?'Optimal':'Under'}</div>
     </div>`;
 }
 
-// ── Render Charts ───────────────────────────────────────────────────────────
 function renderCharts() {
-  const secs = ['SMS','Rolling','Scrap','Distribution'];
-  const fteD  = secs.map(s => +( allEmps.filter(e=>e.sec===s).reduce((a,e)=>a+e.totalTime,0)/480).toFixed(1));
+  const secs = TABS.map(t => t.name);
+  const fteD  = secs.map(s => +(allEmps.filter(e=>e.sec===s).reduce((a,e)=>a+e.totalTime,0)/480).toFixed(1));
   const hcD   = secs.map(s => allEmps.filter(e=>e.sec===s).length);
   const loadD = secs.map(s => {
     const rs = allRoles.filter(r=>r.sec===s && r.loadPct>0);
     return rs.length ? +(rs.reduce((a,r)=>a+r.loadPct,0)/rs.length).toFixed(1) : 0;
   });
 
-  document.getElementById('chartLegend').innerHTML = secs.map((s,i)=>`
+  document.getElementById('chartLegend').innerHTML = secs.map((s,i)=>{
+    if(hcD[i] === 0 && fteD[i] === 0) return ''; // Skip empty tracking metrics
+    return `
     <span class="leg-item">
       <span class="leg-sw" style="background:${SEC_COLOR[s].bar}"></span>
       ${s}: ${fteD[i]} FTE / ${hcD[i]} HC
-    </span>`).join('');
+    </span>`
+  }).join('');
 
   if (chartSec) chartSec.destroy();
   chartSec = new Chart(document.getElementById('cSection').getContext('2d'), {
@@ -419,7 +404,7 @@ function renderCharts() {
       plugins:{legend:{display:false}},
       scales:{
         y:{beginAtZero:true, grid:{color:'rgba(128,128,128,0.1)'}, ticks:{font:{size:10},color:'#888'}},
-        x:{grid:{display:false}, ticks:{font:{size:11},color:'#888'}}
+        x:{grid:{display:false}, ticks:{font:{size:10},color:'#888', maxRotation: 45, minRotation: 45}}
       }
     }
   });
@@ -432,7 +417,7 @@ function renderCharts() {
       datasets:[{
         label:'Avg Workload %', data:loadD,
         backgroundColor:loadD.map(v=>wColor(v)),
-        borderRadius:4, barThickness:26
+        borderRadius:4, barThickness:12
       }]
     },
     options:{
@@ -442,13 +427,12 @@ function renderCharts() {
         x:{beginAtZero:true, max:120,
            grid:{color:'rgba(128,128,128,0.1)'},
            ticks:{callback:v=>v+'%', font:{size:10}, color:'#888'}},
-        y:{grid:{display:false}, ticks:{font:{size:11}, color:'#888'}}
+        y:{grid:{display:false}, ticks:{font:{size:10}, color:'#888'}}
       }
     }
   });
 }
 
-// ── Render Role Table ───────────────────────────────────────────────────────
 function renderRoles() {
   const { roles } = filtered();
   const q = document.getElementById('roleSearch').value.toLowerCase();
@@ -466,7 +450,7 @@ function renderRoles() {
     const col = wColor(r.loadPct);
     return `<tr>
       <td><span class="tag ${tagClass(r.sec)}">${r.sec}</span></td>
-      <td class="muted" style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.role}</td>
+      <td class="muted" style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${r.role}">${r.role}</td>
       <td class="r mono">${r.hc}</td>
       <td class="r mono">${r.fte.toFixed(2)}</td>
       <td>
@@ -479,7 +463,6 @@ function renderRoles() {
   }).join('');
 }
 
-// ── Render Capacity Alerts ──────────────────────────────────────────────────
 function renderCap() {
   const { roles } = filtered();
   const over  = roles.filter(r=>r.loadPct>100).sort((a,b)=>b.loadPct-a.loadPct).slice(0,5);
@@ -511,7 +494,6 @@ function renderCap() {
   }).join('');
 }
 
-// ── Render Employee Table ───────────────────────────────────────────────────
 function renderEmps() {
   const { emps } = filtered();
   const q = document.getElementById('empSearch').value.toLowerCase();
@@ -560,17 +542,17 @@ function setStatus(state, txt) {
   document.getElementById('sTxt').textContent = txt;
 }
 
-// ── Main load ───────────────────────────────────────────────────────────────
 async function loadAll() {
   setStatus('loading','Fetching data…');
   document.getElementById('kpiGrid').innerHTML =
-    '<div class="kpi" style="grid-column:1/-1"><div class="loading-box"><div class="spinner"></div><span>Pulling live data from Google Sheets…</span></div></div>';
+    '<div class="kpi" style="grid-column:1/-1"><div class="loading-box"><div class="spinner"></div><span>Pulling live data from 11 Google Sheet Tabs…</span></div></div>';
 
   try {
-    const parsers = [parseSMS, parseRolling, parseScrap, parseDist];
+    // Fetches and parses all 11 tabs asynchronously utilizing our universal structure parser
     const results = await Promise.all(
-      TABS.map((t,i) => fetchTab(t.gid).then(rows => parsers[i](rows)))
+      TABS.map(t => fetchTab(t.gid).then(rows => parseTabRows(rows, t.name)))
     );
+    
     const allRows = results.flat();
     allEmps  = aggByEmp(allRows);
     allRoles = aggByRole(allEmps);
@@ -585,14 +567,16 @@ async function loadAll() {
     document.getElementById('kpiGrid').innerHTML = `
       <div class="kpi" style="grid-column:1/-1">
         <div class="err-box">
-          <div>⚠️ Could not load data</div>
-          <div style="color:var(--text-muted);font-size:11px">Check console · Ensure sheet is shared as "Anyone with the link → Viewer" and tab GIDs are correct</div>
+          <div>⚠️ Could not load data from spreadsheet</div>
+          <div style="color:var(--text-muted);font-size:11px">Ensure sheet is shared as "Anyone with the link → Viewer" and all 11 tab GIDs are accurate.</div>
           <button class="btn primary" onclick="loadAll()" style="margin-top:8px">↻ Retry</button>
         </div>
       </div>`;
   }
 }
 
+// Runtime Initialization
+buildFilterButtons();
 loadAll();
 </script>
 </body>
