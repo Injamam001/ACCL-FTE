@@ -83,7 +83,7 @@ tbody td{padding:6px 8px;color:var(--text-primary)}
 td.muted{color:var(--text-secondary)}
 .tag{display:inline-flex;align-items:center;font-size:9px;font-weight:600;padding:2px 6px;border-radius:3px;white-space:nowrap;letter-spacing:0.03em}
 
-/* Dynamic Section Colors using unique style markers */
+/* Department palette classifications */
 .t-sec-0 { background:#e8eef8; color:#1a4a8a; }
 .t-sec-1 { background:#e0f5f9; color:#0e7490; }
 .t-sec-2 { background:#fef3e2; color:#b8660a; }
@@ -140,7 +140,6 @@ td.muted{color:var(--text-secondary)}
 
   <div class="filters" id="filterArea">
     <button class="filter-btn active" onclick="setFilter('all',this)">All Sections</button>
-    <!-- Filter buttons populated dynamically -->
   </div>
 
   <div id="kpiGrid" class="kpi-grid">
@@ -151,11 +150,11 @@ td.muted{color:var(--text-secondary)}
     <div class="card">
       <div class="card-title">FTE required vs headcount by section <small>per shift</small></div>
       <div class="legend" id="chartLegend"></div>
-      <div class="chart-wrap" style="height:220px"><canvas id="cSection" role="img" aria-label="FTE vs headcount by section"></canvas></div>
+      <div class="chart-wrap" style="height:240px"><canvas id="cSection" role="img" aria-label="FTE vs headcount by section"></canvas></div>
     </div>
     <div class="card">
       <div class="card-title">Average workload % by section <small>100% = full shift</small></div>
-      <div class="chart-wrap" style="height:220px"><canvas id="cLoad" role="img" aria-label="Workload percentage by section"></canvas></div>
+      <div class="chart-wrap" style="height:240px"><canvas id="cLoad" role="img" aria-label="Workload percentage by section"></canvas></div>
     </div>
   </div>
 
@@ -198,7 +197,7 @@ td.muted{color:var(--text-secondary)}
 const SHEET_ID = '11TDZ7ZNJlbByF978n0mGPXtTxuxv6oHpiPFT-_RTdm8';
 const CSV_BASE = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv`;
 
-// Complete list of all 11 sections with their designated GIDs
+// Master list matching your designated tab GIDs
 const TABS = [
   { name: 'Inventory', gid: '837727582' },
   { name: 'Packer', gid: '659241422' },
@@ -213,7 +212,6 @@ const TABS = [
   { name: 'HR & Admin', gid: '181880783' }
 ];
 
-// Expanded hex palette for up to 11 custom chart profiles
 const PALETTE = [
   '#1a4a8a', '#0e7490', '#b8660a', '#6d28d9', '#2d7a4f', 
   '#c0392b', '#ea580c', '#16a34a', '#7c3aed', '#e11d48', '#0d9488'
@@ -232,7 +230,6 @@ let allEmps = [], allRoles = [];
 let activeFilter = 'all', roleSort = 'fte';
 let chartSec = null, chartLoad = null;
 
-// Build the HTML Filter buttons based on your tabs array dynamically
 function buildFilterButtons() {
   const container = document.getElementById('filterArea');
   container.innerHTML = `<button class="filter-btn active" onclick="setFilter('all',this)">All Sections</button>`;
@@ -254,19 +251,38 @@ function fetchTab(gid) {
   });
 }
 
-function g(row, i) { return (row[i] || '').toString().trim(); }
-function n(row, i) { const v = parseFloat(row[i]); return isNaN(v) ? 0 : v; }
+function g(row, i) { return i !== -1 && row[i] ? row[i].toString().trim() : ''; }
+function n(row, i) { if (i === -1 || !row[i]) return 0; const v = parseFloat(row[i]); return isNaN(v) ? 0 : v; }
 
-// Universal single layout parser optimized for your 0 to 9 schema
+// Smart parser that dynamically matches text column header fields
 function parseTabRows(rows, sectionName) {
+  if (rows.length < 2) return [];
+
+  const headers = rows[0].map(h => h.toString().trim().toLowerCase());
+  
+  const empIdx    = headers.findIndex(h => h.includes('employee name') || h.includes('name'));
+  const roleIdx   = headers.findIndex(h => h.includes('role'));
+  const enrollIdx = headers.findIndex(h => h.includes('enroll') || h.includes('id'));
+  const wcIdx     = headers.findIndex(h => h.includes('work centre') || h.includes('workcentre') || h.includes('centre'));
+  const taskIdx   = headers.findIndex(h => h.includes('task'));
+  const timeIdx   = headers.findIndex(h => h.includes('total time') || h.includes('totaltime') || h === 'time');
+
+  // Fallback defaults if lookup fails
+  const fEmp    = empIdx !== -1 ? empIdx : 2;
+  const fRole   = roleIdx !== -1 ? roleIdx : 3;
+  const fEnroll = enrollIdx !== -1 ? enrollIdx : 4;
+  const fWc     = wcIdx !== -1 ? wcIdx : 5;
+  const fTask   = taskIdx !== -1 ? taskIdx : 6;
+  const fTime   = timeIdx !== -1 ? timeIdx : 9;
+
   return rows.slice(1).map(r => ({
     sec: sectionName, 
-    emp: g(r, 2), 
-    role: g(r, 3), 
-    enroll: g(r, 4),
-    wc: g(r, 5), 
-    task: g(r, 6), 
-    totalTime: n(r, 9)
+    emp: g(r, fEmp), 
+    role: g(r, fRole), 
+    enroll: enrollIdx !== -1 ? g(r, fEnroll) : 'N/A',
+    wc: g(r, fWc), 
+    task: g(r, fTask), 
+    totalTime: n(r, fTime)
   })).filter(r => r.emp && r.role && r.role.length > 1);
 }
 
@@ -376,7 +392,7 @@ function renderCharts() {
   });
 
   document.getElementById('chartLegend').innerHTML = secs.map((s,i)=>{
-    if(hcD[i] === 0 && fteD[i] === 0) return ''; // Skip empty tracking metrics
+    if(hcD[i] === 0 && fteD[i] === 0) return '';
     return `
     <span class="leg-item">
       <span class="leg-sw" style="background:${SEC_COLOR[s].bar}"></span>
@@ -404,7 +420,7 @@ function renderCharts() {
       plugins:{legend:{display:false}},
       scales:{
         y:{beginAtZero:true, grid:{color:'rgba(128,128,128,0.1)'}, ticks:{font:{size:10},color:'#888'}},
-        x:{grid:{display:false}, ticks:{font:{size:10},color:'#888', maxRotation: 45, minRotation: 45}}
+        x:{grid:{display:false}, ticks:{font:{size:9},color:'#888', maxRotation: 45, minRotation: 45}}
       }
     }
   });
@@ -417,7 +433,7 @@ function renderCharts() {
       datasets:[{
         label:'Avg Workload %', data:loadD,
         backgroundColor:loadD.map(v=>wColor(v)),
-        borderRadius:4, barThickness:12
+        borderRadius:4, barThickness:10
       }]
     },
     options:{
@@ -545,10 +561,9 @@ function setStatus(state, txt) {
 async function loadAll() {
   setStatus('loading','Fetching data…');
   document.getElementById('kpiGrid').innerHTML =
-    '<div class="kpi" style="grid-column:1/-1"><div class="loading-box"><div class="spinner"></div><span>Pulling live data from 11 Google Sheet Tabs…</span></div></div>';
+    '<div class="kpi" style="grid-column:1/-1"><div class="loading-box"><div class="spinner"></div><span>Pulling live dataset variables from Google Sheets…</span></div></div>';
 
   try {
-    // Fetches and parses all 11 tabs asynchronously utilizing our universal structure parser
     const results = await Promise.all(
       TABS.map(t => fetchTab(t.gid).then(rows => parseTabRows(rows, t.name)))
     );
@@ -568,14 +583,13 @@ async function loadAll() {
       <div class="kpi" style="grid-column:1/-1">
         <div class="err-box">
           <div>⚠️ Could not load data from spreadsheet</div>
-          <div style="color:var(--text-muted);font-size:11px">Ensure sheet is shared as "Anyone with the link → Viewer" and all 11 tab GIDs are accurate.</div>
+          <div style="color:var(--text-muted);font-size:11px">Verify the file access is configured as "Anyone with the link → Viewer" and all GIDs match.</div>
           <button class="btn primary" onclick="loadAll()" style="margin-top:8px">↻ Retry</button>
         </div>
       </div>`;
   }
 }
 
-// Runtime Initialization
 buildFilterButtons();
 loadAll();
 </script>
